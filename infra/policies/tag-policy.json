@@ -1,26 +1,54 @@
 {
   "tags": {
     "Project": {
-      "tag_key": { "@@assign": "Project" },
-      "tag_value": { "@@assign": ["GenAIPipeline"] }
+      "tag_key": {
+        "@@assign": "Project"
+      },
+      "tag_value": {
+        "@@assign": [
+          "GenAIPipeline"
+        ]
+      }
     },
     "Environment": {
-      "tag_key": { "@@assign": "Environment" },
-      "tag_value": { "@@assign": ["dev", "test", "prod"] }
+      "tag_key": {
+        "@@assign": "Environment"
+      },
+      "tag_value": {
+        "@@assign": [
+          "dev",
+          "test",
+          "prod"
+        ]
+      }
     },
     "Component": {
-      "tag_key": { "@@assign": "Component" },
-      "tag_value": { "@@assign": ["DataProcessing", "ModelInference", "Orchestration", "Monitoring", "Application"] }
+      "tag_key": {
+        "@@assign": "Component"
+      },
+      "tag_value": {
+        "@@assign": [
+          "DataProcessing",
+          "ModelInference",
+          "Orchestration",
+          "Monitoring",
+          "Application"
+        ]
+      }
     },
     "Service": {
-      "tag_key": { "@@assign": "Service" },
-      "tag_value": { "@@assign": ["Graviton", "Bedrock", "AmazonQ", "SageMaker", "StepFunctions"] }
-    },
-    "CostCenter": {
-      "tag_key": { "@@assign": "CostCenter" }
-    },
-    "Owner": {
-      "tag_key": { "@@assign": "Owner" }
+      "tag_key": {
+        "@@assign": "Service"
+      },
+      "tag_value": {
+        "@@assign": [
+          "Graviton",
+          "Bedrock",
+          "AmazonQ",
+          "SageMaker",
+          "StepFunctions"
+        ]
+      }
     }
   }
 }

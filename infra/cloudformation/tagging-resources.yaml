@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Tag Policy and Resource Groups for GenAI Pipeline Project'
+
+Resources:
+  GenAIPipelineAllGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name: GenAIPipeline-All
+      Description: 'All resources for GenAI pipeline project'
+      ResourceQuery:
+        Type: TAG_FILTERS_1_0
+        Query:
+          ResourceTypeFilters:
+            - "AWS::AllSupported"
+          TagFilters:
+            - Key: Project
+              Values:
+                - GenAIPipeline
+
+  GenAIPipelineDevGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name: GenAIPipeline-Dev
+      Description: 'Development resources for GenAI pipeline project'
+      ResourceQuery:
+        Type: TAG_FILTERS_1_0
+        Query:
+          ResourceTypeFilters:
+            - "AWS::AllSupported"
+          TagFilters:
+            - Key: Project
+              Values:
+                - GenAIPipeline
+            - Key: Environment
+              Values:
+                - dev
+
+  GenAIPipelineProdGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name: GenAIPipeline-Prod
+      Description: 'Production resources for GenAI pipeline project'
+      ResourceQuery:
+        Type: TAG_FILTERS_1_0
+        Query:
+          ResourceTypeFilters:
+            - "AWS::AllSupported"
+          TagFilters:
+            - Key: Project
+              Values:
+                - GenAIPipeline
+            - Key: Environment
+              Values:
+                - prod
+
+  GenAIPipelineInferenceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name: GenAIPipeline-Inference
+      Description: 'Model inference resources for GenAI pipeline project'
+      ResourceQuery:
+        Type: TAG_FILTERS_1_0
+        Query:
+          ResourceTypeFilters:
+            - "AWS::AllSupported"
+          TagFilters:
+            - Key: Project
+              Values:
+                - GenAIPipeline
+            - Key: Component
+              Values:
+                - ModelInference
+
+Outputs:
+  AllResourcesGroup:
+    Description: 'Resource Group for all GenAI Pipeline resources'
+    Value: !Ref GenAIPipelineAllGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-AllResourcesGroup'
+
+  DevResourcesGroup:
+    Description: 'Resource Group for development resources'
+    Value: !Ref GenAIPipelineDevGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-DevResourcesGroup'
+
+  ProdResourcesGroup:
+    Description: 'Resource Group for production resources'
+    Value: !Ref GenAIPipelineProdGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-ProdResourcesGroup'
