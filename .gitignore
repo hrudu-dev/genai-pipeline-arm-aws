@@ -8,3 +8,8 @@ __pycache__/
 *.log
 .wakatime-project
 .wakatime.cfg
+
+# Build artifacts
+build/
+*.zip
+genai-pipeline-*.zip
