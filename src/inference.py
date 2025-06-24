@@ -1,5 +1,32 @@
 import json
 import boto3
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import uvicorn
+
+# FastAPI app for EC2 deployment
+app = FastAPI(title="GenAI Pipeline", description="ARM64/Graviton optimized GenAI Pipeline")
+
+class InferenceRequest(BaseModel):
+    prompt: str
+
+class InferenceResponse(BaseModel):
+    inference_complete: bool
+    result: str = None
+    error: str = None
+    data: dict = None
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "architecture": "ARM64", "service": "GenAI Pipeline"}
+
+@app.post("/", response_model=InferenceResponse)
+async def inference_endpoint(request: InferenceRequest):
+    try:
+        result = run_inference({"prompt": request.prompt})
+        return InferenceResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 def run_inference(data):
     """Run GenAI model inference on processed data."""

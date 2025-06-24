@@ -66,10 +66,17 @@ curl -X POST "https://2fu2iveexbqvfe74qqehldjeky0urivd.lambda-url.us-east-1.on.a
 
 ## 🏗️ Architecture
 
+### **Serverless (Lambda)**
 - **AWS Lambda (ARM64)**: Serverless inference with Graviton processors
 - **Amazon Bedrock**: Claude AI model access
 - **Function URLs**: Direct HTTPS access
 - **CloudWatch**: Comprehensive logging and monitoring
+
+### **Dedicated Compute (EC2)**
+- **Graviton EC2 Instances**: t4g.medium, c7g.large, m7g.xlarge
+- **Docker Support**: ARM64-optimized containers
+- **Auto Scaling**: Horizontal scaling based on demand
+- **Cost Optimization**: 40% savings vs x86 instances
 
 ## 📁 Project Structure
 
@@ -121,6 +128,28 @@ curl -X POST "https://your-function-url/" \
   -d '{"prompt": "Hello, AI!"}'
 ```
 
+## 🖥️ EC2 ARM64/Graviton Deployment
+
+**Deploy on dedicated ARM64/Graviton EC2 instances for maximum performance and cost savings**
+
+### **Quick Launch**
+```bash
+# Launch ARM64/Graviton EC2 instance
+./scripts/launch-ec2-arm64.sh -k YOUR_KEY_PAIR_NAME -t t4g.medium
+
+# Deploy to existing instance
+./scripts/deploy-to-ec2.sh -i PUBLIC_IP -k KEY_PAIR_NAME
+```
+
+### **Instance Types & Costs**
+| Type | vCPU | RAM | Monthly Cost | Use Case |
+|------|------|-----|--------------|----------|
+| **t4g.medium** | 2 | 4GB | ~$24 | **Recommended** |
+| **c7g.large** | 2 | 4GB | ~$50 | Compute-intensive |
+| **m7g.xlarge** | 4 | 16GB | ~$120 | Memory-intensive |
+
+📖 **[Complete EC2 Deployment Guide →](README-EC2.md)**
+
 ## 📈 Status
 
 | Component | Status | Notes |
@@ -129,8 +158,9 @@ curl -X POST "https://your-function-url/" \
 | **ARM64 Optimization** | ✅ **Complete** | 40% cost savings |
 | **Local Testing** | ✅ **Working** | Full dev environment |
 | **Lambda Deployment** | ✅ **Live** | Function URL active |
+| **EC2 ARM64 Support** | ✅ **Complete** | CloudFormation + Terraform |
 | **Bedrock Integration** | ✅ **Operational** | Claude model access |
-| **CloudFormation** | 🔧 **In Progress** | IaC deployment |
+| **CloudFormation** | ✅ **Complete** | IaC deployment |
 | **API Gateway** | 📋 **Planned** | Enhanced API management |
 
 ## 🛠️ Development
