@@ -67,17 +67,21 @@ Resources:
                   - !Sub '${DataBucket}/*'
                   - !Sub 'arn:aws:s3:::${ArtifactsBucket}/*'
 
-  # Lambda Function for Data Processing
+  # Lambda Function for Data Processing (ARM64/Graviton)
   DataProcessingFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${ProjectName}-DataProcessing-${Environment}'
-      Runtime: python3.9
+      Runtime: python3.11
       Handler: data_processing.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
+      Architectures:
+        - arm64
       Code:
         S3Bucket: !Ref ArtifactsBucket
         S3Key: artifacts/genai-pipeline.zip
+      MemorySize: 512
+      Timeout: 60
       Environment:
         Variables:
           DATA_BUCKET: !Ref DataBucket
@@ -88,17 +92,21 @@ Resources:
           Value: !Ref Environment
         - Key: Component
           Value: DataProcessing
+        - Key: Architecture
+          Value: ARM64
         - Key: Service
           Value: Graviton
 
-  # Lambda Function for Inference
+  # Lambda Function for Inference (ARM64/Graviton)
   InferenceFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${ProjectName}-Inference-${Environment}'
-      Runtime: python3.9
+      Runtime: python3.11
       Handler: inference.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
+      Architectures:
+        - arm64
       Code:
         S3Bucket: !Ref ArtifactsBucket
         S3Key: artifacts/genai-pipeline.zip
@@ -114,6 +122,8 @@ Resources:
           Value: !Ref Environment
         - Key: Component
           Value: ModelInference
+        - Key: Architecture
+          Value: ARM64
         - Key: Service
           Value: Bedrock
 
