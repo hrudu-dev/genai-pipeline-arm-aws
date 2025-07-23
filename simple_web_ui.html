@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GenAI Pipeline Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>GenAI Pipeline Demo</h1>
+    <p>This demo uses AWS Bedrock with Claude AI model running on ARM64/Graviton Lambda for cost-optimized inference.</p>
+    
+    <div class="container">
+        <h2>Enter your prompt:</h2>
+        <textarea id="prompt" placeholder="What is artificial intelligence?"></textarea>
+        <button onclick="sendPrompt()">Submit</button>
+        
+        <div class="loading" id="loading">
+            <p>Processing your request...</p>
+        </div>
+        
+        <div class="response" id="response"></div>
+        <div class="error" id="error"></div>
+    </div>
+
+    <script>
+        const API_URL = "https://btjml6cwvtetuz4mraonqwyqbq0aeotc.lambda-url.us-east-1.on.aws/";
+        
+        async function sendPrompt() {
+            const promptText = document.getElementById('prompt').value.trim();
+            if (!promptText) {
+                alert('Please enter a prompt');
+                return;
+            }
+            
+            // Show loading indicator
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('response').style.display = 'none';
+            document.getElementById('error').textContent = '';
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({ prompt: promptText }),
+                    mode: 'cors'
+                });
+                
+                const data = await response.json();
+                
+                // Hide loading indicator
+                document.getElementById('loading').style.display = 'none';
+                
+                // Display response
+                const responseElement = document.getElementById('response');
+                responseElement.style.display = 'block';
+                
+                if (data.inference_complete) {
+                    responseElement.textContent = data.result;
+                } else {
+                    document.getElementById('error').textContent = `Error: ${data.error || 'Unknown error'}`;
+                }
+            } catch (error) {
+                // Hide loading indicator
+                document.getElementById('loading').style.display = 'none';
+                
+                // Display error
+                document.getElementById('error').textContent = `Error: ${error.message}`;
+                
+                // Alternative method using form submission
+                if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                    document.getElementById('error').textContent += 
+                        "\n\nCORS issue detected. Try using the command line test instead:\n" +
+                        `curl -X POST "${API_URL}" -H "Content-Type: application/json" -d '{"prompt": "${promptText.replace(/"/g, '\\"')}"}'`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

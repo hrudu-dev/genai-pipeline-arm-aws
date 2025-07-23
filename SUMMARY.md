@@ -1,117 +1,72 @@
-# GenAI Pipeline - Project Summary
+# GenAI Pipeline Project Summary
 
-## Overview
+## Project Overview
 
-The GenAI Pipeline is a production-ready, cost-optimized AI inference pipeline built on AWS with ARM64/Graviton optimization. It leverages AWS Bedrock for Claude AI model inference and provides a scalable, serverless architecture with significant cost savings.
+The GenAI Pipeline is a production-ready, cost-optimized AI inference pipeline built on AWS. It leverages AWS Bedrock for AI model access and AWS Lambda with ARM64/Graviton architecture for optimal cost and performance.
 
-## Core Components
+## Key Components
 
-1. **Lambda Function**: ARM64-optimized serverless function for AI inference
-2. **Bedrock Integration**: Access to Claude AI models for high-quality responses
-3. **API Gateway**: Enhanced API management with authentication and rate limiting
-4. **CloudWatch Monitoring**: Comprehensive monitoring and alerting
-5. **Multi-Region Deployment**: Redundancy and lower latency for global users
-6. **Batch Processing**: Parallel processing of multiple prompts
-7. **Web UI**: Simple interface for interacting with the API
+1. **Lambda Function**: Serverless compute for AI inference
+2. **Bedrock Integration**: Access to Claude AI models
+3. **ARM64/Graviton**: Cost-optimized compute architecture
+4. **Function URL**: Direct HTTPS access to the API
+5. **Web UI**: Simple interface for interacting with the API
+6. **Interactive CLI**: Command-line interface for testing
 
-## Architecture
+## Current Deployment
 
-The GenAI Pipeline follows a serverless architecture pattern:
+The project is currently deployed with the following resources:
 
-```
-User Request → API Gateway → Lambda Function → Bedrock → Response
-                    ↓
-             CloudWatch Monitoring
-```
+- **Lambda Function**: GenAIPipelineTest2
+- **Function URL**: https://btjml6cwvtetuz4mraonqwyqbq0aeotc.lambda-url.us-east-1.on.aws/
+- **IAM Role**: lambda-bedrock-role
+- **Region**: us-east-1
 
-## Cost Optimization
+## CI/CD and Maintenance
 
-By leveraging ARM64/Graviton architecture, the GenAI Pipeline achieves:
+The project uses GitHub Actions for CI/CD and maintenance:
 
-- **40% cost savings** compared to x86 architecture
-- **20% performance improvement**
-- **25% faster cold starts**
-- **15% better memory efficiency**
+1. **CI Workflow**: Runs tests on every push and pull request
+2. **Deploy Workflow**: Deploys the Lambda function to AWS
+3. **Maintenance Workflow**: Updates dependencies and cleans up old resources
+4. **Documentation Workflow**: Builds and deploys documentation
 
-## Deployment Options
-
-The GenAI Pipeline offers multiple deployment options:
-
-1. **Lambda Deployment**: Serverless deployment with function URLs
-2. **API Gateway Integration**: Enhanced API management
-3. **EC2 Deployment**: Dedicated compute with Graviton instances
-4. **Multi-Region Deployment**: Global redundancy and lower latency
-
-## Testing
-
-The project includes comprehensive testing capabilities:
-
-1. **Local Testing**: Test the pipeline locally with your AWS credentials
-2. **Unit Tests**: Verify individual components
-3. **API Testing**: Test the deployed API endpoints
-4. **Batch Testing**: Process multiple prompts in parallel
-
-## Advanced Features
-
-### API Gateway Integration
-
-Enhance your API with authentication, rate limiting, and custom domains:
-
-```bash
-python api_gateway_setup.py
-```
-
-### Batch Processing
-
-Process multiple prompts in parallel for increased throughput:
-
-```bash
-python batch_processing.py sample_prompts.txt --workers 5
-```
-
-### CloudWatch Monitoring
-
-Set up comprehensive monitoring and alerting:
-
-```bash
-python setup_monitoring.py
-```
-
-### Multi-Region Deployment
-
-Deploy to multiple AWS regions for redundancy and lower latency:
-
-```bash
-python multi_region_deploy.py
-```
-
-### Web UI
-
-Interact with the API through a simple web interface:
-
-```bash
-python web_ui/server.py
-```
+For more details, see [GitHub Actions Documentation](docs/github-actions.md).
 
 ## Getting Started
 
-To get started with the GenAI Pipeline:
+To get started with the project:
 
-1. Clone the repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Configure AWS credentials in `.env`
-4. Test locally: `python test_local.py`
-5. Deploy to AWS: `python deploy_simple.py`
-6. Set up all features: `python setup_all.py`
+1. Review the [README.md](README.md) for an overview
+2. Follow the [GETTING-STARTED.md](GETTING-STARTED.md) for setup instructions
+3. See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment options
+4. Use [TESTING.md](TESTING.md) for testing instructions
+
+## Available Tools
+
+The project includes several tools for interacting with the API:
+
+1. **test_local.py**: Test Bedrock integration locally
+2. **test_api.py**: Test the deployed API
+3. **run_interactive.py**: Interactive CLI for testing
+4. **serve_ui.py**: Web UI for testing
+5. **batch_processing.py**: Process multiple prompts in parallel
+6. **cleanup_aws_resources.py**: Clean up old AWS resources
 
 ## Next Steps
 
-1. Add custom domain name for API Gateway
-2. Implement caching for common requests
-3. Add authentication and authorization
-4. Create CI/CD pipeline for automated deployments
-5. Implement cost optimization strategies
+Consider the following next steps for the project:
 
-## Conclusion
+1. **API Gateway Integration**: Add authentication, rate limiting, and custom domains
+2. **CloudWatch Monitoring**: Set up comprehensive monitoring and alerting
+3. **Multi-Region Deployment**: Deploy to multiple regions for redundancy and lower latency
+4. **Request Caching**: Implement caching for improved performance and reduced costs
+5. **CI/CD Pipeline**: Set up automated testing and deployment
 
-The GenAI Pipeline provides a production-ready, cost-optimized solution for AI inference on AWS. By leveraging ARM64/Graviton architecture, it achieves significant cost savings while maintaining high performance and scalability.
+## Support
+
+For support or questions, please contact the project maintainer or open an issue on GitHub.
+
+---
+
+**Built with ❤️ using AWS Graviton for optimal cost and performance**

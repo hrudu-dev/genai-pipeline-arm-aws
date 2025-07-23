@@ -2,27 +2,46 @@ name: Deploy GenAI Pipeline
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      deploy_multi_region:
+        description: 'Deploy to multiple regions'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
+          cache: 'pip'
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
+      
       - name: Run tests
-        run: |
-          python -m pytest tests/
+        run: python -m pytest tests/
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -32,19 +51,33 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
+          cache: 'pip'
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
+      
       - name: Deploy Lambda function
-        run: |
-          python deploy_simple.py
+        run: python deploy_simple.py
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+          LAMBDA_ROLE_ARN: ${{ secrets.LAMBDA_ROLE_ARN }}
+          ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+      
+      - name: Verify deployment
+        run: python test_api.py "Test deployment"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -54,16 +87,22 @@ jobs:
     needs: deploy-lambda
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
+          cache: 'pip'
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
+      
       - name: Set up cache
         run: |
           python setup_cache.py
@@ -72,25 +111,34 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
+          LAMBDA_ROLE_ARN: ${{ secrets.LAMBDA_ROLE_ARN }}
+          ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
 
   deploy-multi-region:
     needs: deploy-lambda
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event.inputs.deploy_multi_region == 'true'
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
+          cache: 'pip'
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
+      
       - name: Deploy to multiple regions
-        run: |
-          python multi_region_deploy.py
+        run: python multi_region_deploy.py
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
+          LAMBDA_ROLE_ARN: ${{ secrets.LAMBDA_ROLE_ARN }}
+          ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}

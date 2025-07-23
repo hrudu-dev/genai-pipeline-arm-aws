@@ -1,125 +1,210 @@
-# Deploying the GenAI Pipeline
+# Deployment Guide for GenAI Pipeline
 
-This guide provides step-by-step instructions for deploying the GenAI Pipeline to AWS.
+This guide provides detailed instructions for deploying the GenAI Pipeline to AWS.
+
+## Deployment Options
+
+The GenAI Pipeline can be deployed in several ways:
+
+1. **Simple Lambda Deployment** - Quick deployment using the `deploy_simple.py` script
+2. **Advanced Lambda Deployment** - More configuration options using the `deploy_advanced.py` script
+3. **CloudFormation Deployment** - Infrastructure as Code deployment using CloudFormation
+4. **Terraform Deployment** - Infrastructure as Code deployment using Terraform
+5. **EC2 Deployment** - Deployment to EC2 instances for dedicated compute
+
+This guide focuses on the Simple Lambda Deployment option, which is the quickest way to get started.
 
 ## Prerequisites
 
-1. AWS account with access to:
-   - AWS Lambda
-   - Amazon Bedrock (Claude 3 Haiku model)
-   - IAM permissions to create roles and policies
+- AWS Account with access to Amazon Bedrock
+- IAM Role for Lambda with Bedrock access
+- AWS credentials configured in `.env` file
 
-2. AWS CLI installed and configured with appropriate credentials
+## Simple Lambda Deployment
 
-## Option 1: Automated Setup (Recommended)
+### Step 1: Prepare Environment
 
-The easiest way to deploy the GenAI Pipeline is using our setup script:
-
-```bash
-python setup.py
-```
-
-This script will:
-1. Configure your AWS credentials
-2. Check your access to Amazon Bedrock
-3. Deploy the Lambda function
-4. Update test scripts with your function URL
-
-## Option 2: One-Click CloudFormation Deployment
-
-For a complete infrastructure deployment:
-
-1. Open the AWS CloudFormation console
-2. Click "Create stack" > "With new resources"
-3. Upload the template file: `deploy/one-click-deploy.yaml`
-4. Follow the prompts to complete the deployment
-5. Once deployed, note the function URL from the Outputs tab
-
-## Option 3: Manual Deployment
-
-### Step 1: Configure AWS Credentials
-
-Create or update your `.env` file with AWS credentials:
+Ensure your `.env` file is configured with the necessary values:
 
 ```
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_DEFAULT_REGION=us-east-1
+PROJECT_NAME=GenAIPipeline
+ENVIRONMENT=dev
+LAMBDA_ROLE_ARN=arn:aws:iam::YOUR_ACCOUNT_ID:role/lambda-bedrock-role
 ```
 
-### Step 2: Create IAM Role for Lambda
-
-1. Create a file named `trust-policy.json`:
-   ```json
-   {
-     "Version": "2012-10-17",
-     "Statement": [
-       {
-         "Effect": "Allow",
-         "Principal": {
-           "Service": "lambda.amazonaws.com"
-         },
-         "Action": "sts:AssumeRole"
-       }
-     ]
-   }
-   ```
-
-2. Create the role:
-   ```bash
-   aws iam create-role --role-name lambda-bedrock-role --assume-role-policy-document file://trust-policy.json
-   ```
-
-3. Attach policies:
-   ```bash
-   aws iam attach-role-policy --role-name lambda-bedrock-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-   ```
-
-4. Create Bedrock access policy:
-   ```bash
-   aws iam put-role-policy --role-name lambda-bedrock-role --policy-name bedrock-access --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"bedrock:InvokeModel","Resource":"*"}]}'
-   ```
-
-### Step 3: Deploy Lambda Function
-
-1. Build the package:
-   ```bash
-   mkdir -p build
-   cp -r src/* build/
-   pip install -r requirements.txt -t build/
-   cd build && zip -r ../function.zip . && cd ..
-   ```
-
-2. Create the Lambda function:
-   ```bash
-   aws lambda create-function \
-     --function-name GenAIPipeline \
-     --runtime python3.9 \
-     --architectures arm64 \
-     --handler main.lambda_handler \
-     --role arn:aws:iam::ACCOUNT_ID:role/lambda-bedrock-role \
-     --zip-file fileb://function.zip
-   ```
-
-3. Create function URL:
-   ```bash
-   aws lambda create-function-url-config \
-     --function-name GenAIPipeline \
-     --auth-type NONE
-   ```
-
-## Testing Your Deployment
-
-After deployment, test your function:
+### Step 2: Deploy Lambda Function
 
 ```bash
-curl -X POST "YOUR_FUNCTION_URL" \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "What is artificial intelligence?"}'
+# Windows
+py deploy_simple.py
+
+# Linux/Mac
+python deploy_simple.py
 ```
 
-Or use the provided test script:
+This script will:
+1. Create a zip package with the Lambda function code
+2. Create or update the Lambda function using the role you specified
+3. Create a function URL for accessing the Lambda
+4. Output the function URL for testing
+
+### Step 3: Test Deployment
+
+Use the function URL provided in the deployment output to test the API:
 
 ```bash
-python run_test.py
+# Windows
+py test_api.py "What is artificial intelligence?"
+
+# Linux/Mac
+python test_api.py "What is artificial intelligence?"
 ```
+
+## Advanced Lambda Deployment
+
+For more configuration options, use the `deploy_advanced.py` script:
+
+```bash
+# Windows
+py deploy_advanced.py --memory 512 --timeout 60 --name CustomGenAIPipeline
+
+# Linux/Mac
+python deploy_advanced.py --memory 512 --timeout 60 --name CustomGenAIPipeline
+```
+
+Options:
+- `--memory`: Memory allocation in MB (default: 256)
+- `--timeout`: Function timeout in seconds (default: 30)
+- `--name`: Function name (default: GenAIPipeline)
+- `--region`: AWS region (default: from .env file)
+- `--role`: IAM role ARN (default: from .env file)
+
+## CloudFormation Deployment
+
+For a more comprehensive deployment using CloudFormation:
+
+```bash
+# Windows
+py deploy_cloudformation.py
+
+# Linux/Mac
+python deploy_cloudformation.py
+```
+
+This will deploy the entire stack including:
+- Lambda function
+- IAM role and policies
+- CloudWatch logs
+- Function URL
+
+You can also deploy directly using the AWS CLI:
+
+```bash
+aws cloudformation deploy \
+  --template-file deploy/one-click-deploy.yaml \
+  --stack-name GenAIPipelineStack \
+  --capabilities CAPABILITY_IAM \
+  --parameter-overrides ProjectName=GenAIPipeline Environment=dev
+```
+
+## Terraform Deployment
+
+For deployment using Terraform:
+
+```bash
+cd infra/terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+## EC2 Deployment
+
+For deployment to EC2 instances:
+
+```bash
+# Launch ARM64/Graviton EC2 instance
+./scripts/launch-ec2-arm64.sh -k YOUR_KEY_PAIR_NAME -t t4g.medium
+
+# Deploy to existing instance
+./scripts/deploy-to-ec2.sh -i PUBLIC_IP -k KEY_PAIR_NAME
+```
+
+See [README-EC2.md](README-EC2.md) for more details on EC2 deployment.
+
+## Updating Deployed Function
+
+To update an existing Lambda function:
+
+```bash
+# Windows
+py deploy_simple.py
+
+# Linux/Mac
+python deploy_simple.py
+```
+
+The script will detect that the function already exists and update it instead of creating a new one.
+
+## Deleting Deployed Resources
+
+To clean up deployed resources:
+
+```bash
+# Windows
+py cleanup_aws_resources.py
+
+# Linux/Mac
+python cleanup_aws_resources.py
+```
+
+This will delete:
+- Lambda function
+- Function URL configuration
+- CloudWatch log group
+
+## Monitoring Deployment
+
+After deployment, you can monitor your Lambda function in the AWS Console:
+
+1. Go to the AWS Lambda Console
+2. Find your function (e.g., GenAIPipelineTest2)
+3. Click on the "Monitor" tab to view CloudWatch metrics
+4. Click on "View logs in CloudWatch" to see detailed logs
+
+## Troubleshooting Deployment
+
+### Lambda Creation Fails
+
+If Lambda creation fails:
+- Check that your IAM role has the correct permissions
+- Verify that your AWS credentials have permission to create Lambda functions
+- Ensure that the role ARN in your .env file is correct
+
+### Function URL Creation Fails
+
+If function URL creation fails:
+- Check that your IAM role has permission to create function URLs
+- Verify that your AWS credentials have permission to create function URLs
+
+### Invocation Fails
+
+If function invocation fails:
+- Check that your IAM role has permission to invoke Bedrock models
+- Verify that you have access to Amazon Bedrock
+- Check the CloudWatch logs for detailed error messages
+
+## Next Steps
+
+After successful deployment, consider:
+
+1. Setting up API Gateway for more advanced API features
+2. Implementing authentication and authorization
+3. Setting up CloudWatch alarms for monitoring
+4. Implementing request caching for improved performance
+5. Deploying to multiple regions for redundancy and lower latency
+
+For more information on these advanced features, see the [README.md](README.md) file.

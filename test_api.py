@@ -1,54 +1,42 @@
 #!/usr/bin/env python3
 """
-Test the GenAI Pipeline API directly
+Test script for the deployed GenAI Pipeline API
 """
 
 import requests
 import json
-import argparse
+import sys
 
-# API endpoint URL
-API_URL = "https://cr7c7lxj5mt2lwvyi57s2o6arq0paars.lambda-url.us-east-1.on.aws/"
+# Function URL from deployment
+FUNCTION_URL = "https://btjml6cwvtetuz4mraonqwyqbq0aeotc.lambda-url.us-east-1.on.aws/"
 
 def test_api(prompt):
     """Test the API with a prompt"""
-    print(f"Testing API with prompt: {prompt}")
+    print(f"Testing API with prompt: '{prompt}'")
     
     # Prepare request
     headers = {
         "Content-Type": "application/json"
     }
+    
     data = {
         "prompt": prompt
     }
     
     # Send request
-    print("Sending request...")
-    response = requests.post(API_URL, headers=headers, json=data)
+    response = requests.post(FUNCTION_URL, headers=headers, json=data)
     
-    # Print response
-    print(f"Status code: {response.status_code}")
-    
+    # Check response
     if response.status_code == 200:
-        response_json = response.json()
-        if response_json.get("inference_complete"):
-            print("\nResponse:")
-            print("-" * 80)
-            print(response_json["result"])
-            print("-" * 80)
-        else:
-            print(f"Error: {response_json.get('error', 'Unknown error')}")
+        result = response.json()
+        print("\nAPI Response:")
+        print(f"Status: {'Success' if result.get('inference_complete') else 'Failed'}")
+        print(f"\nResult:\n{result.get('result')}")
     else:
-        print(f"Error: {response.text}")
-
-def main():
-    """Main function"""
-    parser = argparse.ArgumentParser(description="Test the GenAI Pipeline API")
-    parser.add_argument("prompt", nargs="?", default="What is artificial intelligence?", help="Prompt to send to the API")
-    
-    args = parser.parse_args()
-    
-    test_api(args.prompt)
+        print(f"Error: {response.status_code}")
+        print(response.text)
 
 if __name__ == "__main__":
-    main()
+    # Get prompt from command line or use default
+    prompt = sys.argv[1] if len(sys.argv) > 1 else "What is artificial intelligence?"
+    test_api(prompt)

@@ -1,171 +1,156 @@
 #!/usr/bin/env python3
 """
-Simple cleanup script to stop and delete AWS resources created by the GenAI Pipeline project.
+Script to clean up old AWS resources created by the GenAI Pipeline
 """
 
 import boto3
-import sys
+import argparse
+import os
+import datetime
+import dotenv
+from datetime import datetime, timedelta
 
-def cleanup_lambda():
-    """Delete Lambda functions"""
-    print("Cleaning up Lambda functions...")
-    lambda_client = boto3.client('lambda')
+# Load environment variables from .env file
+dotenv.load_dotenv()
+
+def parse_args():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description='Clean up old AWS resources')
+    parser.add_argument('--older-than', type=int, default=30,
+                        help='Delete resources older than this many days')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Dry run (do not actually delete resources)')
+    parser.add_argument('--region', type=str,
+                        default=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'),
+                        help='AWS region')
+    parser.add_argument('--prefix', type=str,
+                        default=os.environ.get('PROJECT_NAME', 'GenAIPipeline'),
+                        help='Resource name prefix')
+    return parser.parse_args()
+
+def cleanup_lambda_functions(args):
+    """Clean up old Lambda functions"""
+    print(f"Cleaning up Lambda functions older than {args.older_than} days...")
     
-    functions = ["GenAIPipeline-Inference", "GenAIPipelineTest2", "GenAIPipelineMultiRegion"]
+    lambda_client = boto3.client('lambda', region_name=args.region)
+    
+    # Get current time
+    now = datetime.now()
+    cutoff_date = now - timedelta(days=args.older_than)
+    
+    # List Lambda functions
+    response = lambda_client.list_functions()
+    functions = response.get('Functions', [])
+    
+    # Filter functions by prefix and age
     for function in functions:
-        try:
-            lambda_client.delete_function(FunctionName=function)
-            print(f"Deleted Lambda function: {function}")
-        except Exception as e:
-            print(f"Error deleting Lambda function {function}: {e}")
+        function_name = function['FunctionName']
+        if function_name.startswith(args.prefix):
+            # Get function last modified time
+            last_modified = datetime.strptime(
+                function['LastModified'].split('.')[0],
+                '%Y-%m-%dT%H:%M:%S'
+            )
+            
+            if last_modified < cutoff_date:
+                print(f"Found old function: {function_name} (Last modified: {last_modified})")
+                
+                if not args.dry_run:
+                    try:
+                        # Delete function URL if it exists
+                        try:
+                            lambda_client.delete_function_url_config(
+                                FunctionName=function_name
+                            )
+                            print(f"  Deleted function URL for {function_name}")
+                        except lambda_client.exceptions.ResourceNotFoundException:
+                            pass
+                        
+                        # Delete the function
+                        lambda_client.delete_function(
+                            FunctionName=function_name
+                        )
+                        print(f"  Deleted function: {function_name}")
+                    except Exception as e:
+                        print(f"  Error deleting function {function_name}: {str(e)}")
 
-def cleanup_ec2():
-    """Terminate EC2 instances"""
-    print("Cleaning up EC2 instances...")
-    ec2 = boto3.client('ec2')
+def cleanup_cloudwatch_logs(args):
+    """Clean up old CloudWatch log groups"""
+    print(f"Cleaning up CloudWatch log groups older than {args.older_than} days...")
     
-    try:
-        # Find instances with GenAIPipeline tag
-        response = ec2.describe_instances(
-            Filters=[{'Name': 'tag:Project', 'Values': ['GenAIPipeline']}]
-        )
+    logs_client = boto3.client('logs', region_name=args.region)
+    
+    # Get current time
+    now = datetime.now()
+    cutoff_date = now - timedelta(days=args.older_than)
+    
+    # List log groups
+    response = logs_client.describe_log_groups(
+        logGroupNamePrefix=f"/aws/lambda/{args.prefix}"
+    )
+    log_groups = response.get('logGroups', [])
+    
+    # Filter log groups by age
+    for log_group in log_groups:
+        log_group_name = log_group['logGroupName']
+        creation_time = datetime.fromtimestamp(log_group['creationTime'] / 1000)
         
-        instance_ids = []
-        for reservation in response['Reservations']:
-            for instance in reservation['Instances']:
-                if instance['State']['Name'] not in ['terminated', 'shutting-down']:
-                    instance_ids.append(instance['InstanceId'])
-        
-        if instance_ids:
-            ec2.terminate_instances(InstanceIds=instance_ids)
-            print(f"Terminated EC2 instances: {instance_ids}")
-        else:
-            print("No EC2 instances found to terminate")
-    except Exception as e:
-        print(f"Error terminating EC2 instances: {e}")
+        if creation_time < cutoff_date:
+            print(f"Found old log group: {log_group_name} (Created: {creation_time})")
+            
+            if not args.dry_run:
+                try:
+                    logs_client.delete_log_group(
+                        logGroupName=log_group_name
+                    )
+                    print(f"  Deleted log group: {log_group_name}")
+                except Exception as e:
+                    print(f"  Error deleting log group {log_group_name}: {str(e)}")
 
-def cleanup_iam():
-    """Delete IAM resources"""
-    print("Cleaning up IAM resources...")
-    iam = boto3.client('iam')
+def cleanup_dynamodb_tables(args):
+    """Clean up old DynamoDB tables"""
+    print(f"Cleaning up DynamoDB tables older than {args.older_than} days...")
     
-    # Delete test user
-    try:
-        user_name = 'genai-pipeline-tester'
-        
-        # Delete access keys
-        try:
-            keys = iam.list_access_keys(UserName=user_name)['AccessKeyMetadata']
-            for key in keys:
-                iam.delete_access_key(UserName=user_name, AccessKeyId=key['AccessKeyId'])
-        except Exception:
-            pass
-        
-        # Detach policies
-        try:
-            policies = iam.list_attached_user_policies(UserName=user_name)['AttachedPolicies']
-            for policy in policies:
-                iam.detach_user_policy(UserName=user_name, PolicyArn=policy['PolicyArn'])
-        except Exception:
-            pass
-        
-        # Delete user
-        iam.delete_user(UserName=user_name)
-        print(f"Deleted IAM user: {user_name}")
-    except Exception as e:
-        print(f"Error deleting IAM user: {e}")
+    dynamodb_client = boto3.client('dynamodb', region_name=args.region)
     
-    # Delete role
-    try:
-        role_name = 'lambda-bedrock-role'
-        
-        # Detach policies
-        try:
-            policies = iam.list_attached_role_policies(RoleName=role_name)['AttachedPolicies']
-            for policy in policies:
-                iam.detach_role_policy(RoleName=role_name, PolicyArn=policy['PolicyArn'])
-        except Exception:
-            pass
-        
-        # Delete inline policies
-        try:
-            policy_names = iam.list_role_policies(RoleName=role_name)['PolicyNames']
-            for policy_name in policy_names:
-                iam.delete_role_policy(RoleName=role_name, PolicyName=policy_name)
-        except Exception:
-            pass
-        
-        # Delete role
-        iam.delete_role(RoleName=role_name)
-        print(f"Deleted IAM role: {role_name}")
-    except Exception as e:
-        print(f"Error deleting IAM role: {e}")
+    # Get current time
+    now = datetime.now()
+    cutoff_date = now - timedelta(days=args.older_than)
     
-    # Delete policy
-    try:
-        policy_name = 'GenAIPipelineTestPolicy'
-        
-        # Find policy ARN
-        policies = iam.list_policies(Scope='Local')['Policies']
-        policy_arn = None
-        for policy in policies:
-            if policy['PolicyName'] == policy_name:
-                policy_arn = policy['Arn']
-                break
-        
-        if policy_arn:
-            iam.delete_policy(PolicyArn=policy_arn)
-            print(f"Deleted IAM policy: {policy_name}")
-    except Exception as e:
-        print(f"Error deleting IAM policy: {e}")
-
-def cleanup_dynamodb():
-    """Delete DynamoDB tables"""
-    print("Cleaning up DynamoDB tables...")
-    dynamodb = boto3.client('dynamodb')
+    # List tables
+    response = dynamodb_client.list_tables()
+    tables = response.get('TableNames', [])
     
-    try:
-        tables = dynamodb.list_tables()['TableNames']
-        for table in tables:
-            if 'genai' in table.lower() or 'pipeline' in table.lower():
-                dynamodb.delete_table(TableName=table)
-                print(f"Deleted DynamoDB table: {table}")
-    except Exception as e:
-        print(f"Error deleting DynamoDB tables: {e}")
-
-def cleanup_cloudformation():
-    """Delete CloudFormation stacks"""
-    print("Cleaning up CloudFormation stacks...")
-    cf = boto3.client('cloudformation')
-    
-    try:
-        stacks = cf.list_stacks(
-            StackStatusFilter=['CREATE_COMPLETE', 'UPDATE_COMPLETE', 'ROLLBACK_COMPLETE']
-        )['StackSummaries']
-        
-        for stack in stacks:
-            if 'genai' in stack['StackName'].lower() or 'pipeline' in stack['StackName'].lower():
-                cf.delete_stack(StackName=stack['StackName'])
-                print(f"Deleting CloudFormation stack: {stack['StackName']}")
-    except Exception as e:
-        print(f"Error deleting CloudFormation stacks: {e}")
+    # Filter tables by prefix and age
+    for table_name in tables:
+        if table_name.startswith(args.prefix):
+            # Get table creation time
+            table_info = dynamodb_client.describe_table(TableName=table_name)
+            creation_time = table_info['Table']['CreationDateTime']
+            
+            if creation_time < cutoff_date:
+                print(f"Found old table: {table_name} (Created: {creation_time})")
+                
+                if not args.dry_run:
+                    try:
+                        dynamodb_client.delete_table(
+                            TableName=table_name
+                        )
+                        print(f"  Deleted table: {table_name}")
+                    except Exception as e:
+                        print(f"  Error deleting table {table_name}: {str(e)}")
 
 def main():
-    print("GenAI Pipeline AWS Resource Cleanup")
-    print("===================================")
+    """Main function"""
+    args = parse_args()
     
-    confirm = input("This will delete ALL AWS resources created by the GenAI Pipeline project. Continue? (y/n): ")
-    if confirm.lower() != 'y':
-        print("Cleanup cancelled.")
-        return
+    print(f"{'DRY RUN: ' if args.dry_run else ''}Cleaning up resources older than {args.older_than} days with prefix '{args.prefix}' in region '{args.region}'")
     
-    cleanup_lambda()
-    cleanup_ec2()
-    cleanup_iam()
-    cleanup_dynamodb()
-    cleanup_cloudformation()
+    cleanup_lambda_functions(args)
+    cleanup_cloudwatch_logs(args)
+    cleanup_dynamodb_tables(args)
     
-    print("\nCleanup complete! All GenAI Pipeline resources have been deleted or scheduled for deletion.")
+    print("Cleanup complete!")
 
 if __name__ == "__main__":
     main()
