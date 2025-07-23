@@ -1,4 +1,5 @@
 import json
+import os
 import boto3
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -31,14 +32,26 @@ async def inference_endpoint(request: InferenceRequest):
 def run_inference(data):
     """Run GenAI model inference on processed data."""
     try:
-        bedrock = boto3.client('bedrock-runtime')
+        # Get credentials from environment variables if available
+        aws_access_key = os.environ.get('AWS_ACCESS_KEY_ID')
+        aws_secret_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
+        aws_region = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
+        
+        # Create Bedrock client with explicit credentials if available
+        if aws_access_key and aws_secret_key:
+            bedrock = boto3.client('bedrock-runtime',
+                                  region_name=aws_region,
+                                  aws_access_key_id=aws_access_key,
+                                  aws_secret_access_key=aws_secret_key)
+        else:
+            bedrock = boto3.client('bedrock-runtime')
         
         # Prepare prompt
         prompt = data.get('prompt', 'Hello, how can I help you?')
         
-        # Call Bedrock model
+        # Call Bedrock model with correct model ID
         response = bedrock.invoke_model(
-            modelId='anthropic.claude-3-haiku-20240307-v1:0',
+            modelId='anthropic.claude-3-haiku-20240307-v1:0',  # Updated model ID
             contentType='application/json',
             accept='application/json',
             body=json.dumps({

@@ -1,49 +1,40 @@
 @echo off
-setlocal enabledelayedexpansion
+echo Deploying GenAI Pipeline Lambda function...
 
-echo Deploying GenAI Pipeline to AWS...
-
-REM Load environment variables
-if exist .env (
-    for /f "tokens=1,2 delims==" %%a in (.env) do set %%a=%%b
+REM Check if AWS CLI is installed
+where aws >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo AWS CLI not found. Please install AWS CLI.
+    exit /b 1
 )
 
-REM Set defaults if not in .env
-if not defined AWS_REGION set AWS_REGION=us-east-1
-if not defined STACK_NAME set STACK_NAME=GenAIPipelineStack
-if not defined PROJECT_NAME set PROJECT_NAME=GenAIPipeline
+REM Load environment variables from .env file
+for /f "tokens=1,2 delims==" %%a in (.env) do (
+    if not "%%a"=="" if not "%%a:~0,1%"=="#" (
+        set "%%a=%%b"
+    )
+)
 
-REM Build project first
-call scripts\build.bat
+echo Building Lambda package...
+mkdir -p build
+xcopy /s /y src build\
+copy requirements.txt build\
 
-REM Upload artifacts to S3
-echo Uploading artifacts to S3...
-aws s3 cp dist\genai-pipeline.zip s3://%S3_BUCKET%/artifacts/
+echo Creating Lambda function...
+aws lambda create-function ^
+    --function-name %PROJECT_NAME% ^
+    --runtime python3.9 ^
+    --architectures arm64 ^
+    --handler main.lambda_handler ^
+    --role arn:aws:iam::%AWS_ACCOUNT_ID%:role/lambda-bedrock-role ^
+    --zip-file fileb://build/function.zip ^
+    --region %AWS_DEFAULT_REGION%
 
-REM Deploy infrastructure
-echo Deploying infrastructure...
-aws cloudformation deploy ^
-    --template-file infra\cloudformation\pipeline.yaml ^
-    --stack-name %STACK_NAME% ^
-    --parameter-overrides ^
-        ProjectName=%PROJECT_NAME% ^
-        Environment=dev ^
-        ArtifactsBucket=%S3_BUCKET% ^
-    --capabilities CAPABILITY_IAM ^
-    --region %AWS_REGION%
+echo Creating function URL...
+aws lambda create-function-url-config ^
+    --function-name %PROJECT_NAME% ^
+    --auth-type NONE ^
+    --region %AWS_DEFAULT_REGION%
 
-REM Deploy tagging resources
-echo Deploying tagging resources...
-aws cloudformation deploy ^
-    --template-file infra\cloudformation\tagging-resources.yaml ^
-    --stack-name %STACK_NAME%-Tagging ^
-    --capabilities CAPABILITY_IAM ^
-    --region %AWS_REGION%
-
-REM Tag resources
-echo Tagging resources...
-call scripts\tag_resources.bat
-
-echo Deployment completed successfully!
-echo Stack: %STACK_NAME%
-echo Region: %AWS_REGION%
+echo Deployment complete!
+echo Function URL: https://{function-id}.lambda-url.%AWS_DEFAULT_REGION%.on.aws/

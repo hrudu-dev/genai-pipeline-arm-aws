@@ -1,15 +1,60 @@
-__pycache__/
-*.pyc
+# Environment variables
 .env
-.venv
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Deployment packages
+*.zip
+function.zip
+simple_function.zip
+genai-pipeline-arm64.zip
+genai-pipeline-minimal.zip
+multi_region_function.zip
+
+# AWS credentials and config
+.aws/
+credentials
+config
+
+# IDE files
 .idea/
 .vscode/
+*.swp
+*.swo
 .DS_Store
-*.log
-.wakatime-project
-.wakatime.cfg
 
-# Build artifacts
-build/
-*.zip
-genai-pipeline-*.zip
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Local development
+node_modules/
+.env.development.local
+.env.test.local
+.env.production.local
+
+# WakaTime
+.wakatime-project

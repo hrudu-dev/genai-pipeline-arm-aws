@@ -1,0 +1,10 @@
+What is artificial intelligence?
+Explain quantum computing in simple terms.
+What are the benefits of ARM64 architecture?
+How does machine learning work?
+What is the difference between AI and machine learning?
+What are the ethical considerations of AI?
+How can businesses leverage AI?
+What is cloud computing?
+Explain serverless architecture.
+What is the future of AI?
