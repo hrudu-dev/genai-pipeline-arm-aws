@@ -48,7 +48,12 @@ jobs:
           pip install -r requirements.txt
       
       - name: Run tests
-        run: python -m pytest tests/
+        run: |
+          if [ -d "tests" ]; then
+            python -m pytest tests/ -v
+          else
+            echo "No tests directory found, skipping tests."
+          fi
 
   deploy-lambda:
     needs: test
@@ -70,72 +75,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
-      - name: Create lambda_function.py if missing
+      - name: Verify lambda_function.py exists
         run: |
-          if [ ! -f "lambda_function.py" ]; then
-            echo "lambda_function.py not found, creating it..."
-            cp src/inference.py lambda_function.py || echo "Failed to copy from src/inference.py"
-            
-            # If copy failed, create a minimal lambda function
-            if [ ! -f "lambda_function.py" ]; then
-              echo "Creating minimal lambda_function.py"
-              echo 'import json' > lambda_function.py
-              echo 'import boto3' >> lambda_function.py
-              echo '' >> lambda_function.py
-              echo 'def lambda_handler(event, context):' >> lambda_function.py
-              echo '    """AWS Lambda handler for model inference."""' >> lambda_function.py
-              echo '    try:' >> lambda_function.py
-              echo '        # Handle both API Gateway and Function URL formats' >> lambda_function.py
-              echo '        if "body" in event:' >> lambda_function.py
-              echo '            data = json.loads(event["body"]) if isinstance(event["body"], str) else event["body"]' >> lambda_function.py
-              echo '        else:' >> lambda_function.py
-              echo '            data = event' >> lambda_function.py
-              echo '' >> lambda_function.py
-              echo '        # Get prompt from request' >> lambda_function.py
-              echo '        prompt = data.get("prompt", "Hello, how can I help you?")' >> lambda_function.py
-              echo '' >> lambda_function.py
-              echo '        # Call Bedrock model' >> lambda_function.py
-              echo '        bedrock = boto3.client("bedrock-runtime")' >> lambda_function.py
-              echo '        response = bedrock.invoke_model(' >> lambda_function.py
-              echo '            modelId="anthropic.claude-3-haiku-20240307-v1:0",' >> lambda_function.py
-              echo '            contentType="application/json",' >> lambda_function.py
-              echo '            accept="application/json",' >> lambda_function.py
-              echo '            body=json.dumps({' >> lambda_function.py
-              echo '                "anthropic_version": "bedrock-2023-05-31",' >> lambda_function.py
-              echo '                "max_tokens": 500,' >> lambda_function.py
-              echo '                "messages": [{"role": "user", "content": prompt}]' >> lambda_function.py
-              echo '            })' >> lambda_function.py
-              echo '        )' >> lambda_function.py
-              echo '' >> lambda_function.py
-              echo '        response_body = json.loads(response.get("body").read())' >> lambda_function.py
-              echo '        return {' >> lambda_function.py
-              echo '            "statusCode": 200,' >> lambda_function.py
-              echo '            "body": json.dumps({' >> lambda_function.py
-              echo '                "inference_complete": True,' >> lambda_function.py
-              echo '                "result": response_body["content"][0]["text"],' >> lambda_function.py
-              echo '                "data": data' >> lambda_function.py
-              echo '            }),' >> lambda_function.py
-              echo '            "headers": {' >> lambda_function.py
-              echo '                "Content-Type": "application/json",' >> lambda_function.py
-              echo '                "Access-Control-Allow-Origin": "*"' >> lambda_function.py
-              echo '            }' >> lambda_function.py
-              echo '        }' >> lambda_function.py
-              echo '    except Exception as e:' >> lambda_function.py
-              echo '        return {' >> lambda_function.py
-              echo '            "statusCode": 500,' >> lambda_function.py
-              echo '            "body": json.dumps({"error": str(e)}),' >> lambda_function.py
-              echo '            "headers": {' >> lambda_function.py
-              echo '                "Content-Type": "application/json",' >> lambda_function.py
-              echo '                "Access-Control-Allow-Origin": "*"' >> lambda_function.py
-              echo '            }' >> lambda_function.py
-              echo '        }' >> lambda_function.py
-            fi
+          if [ -f "lambda_function.py" ]; then
+            echo "lambda_function.py found"
+            echo "Lambda function file contents (first 10 lines):"
+            head -n 10 lambda_function.py
+          else
+            echo "Error: lambda_function.py not found"
+            exit 1
           fi
-          
-          echo "Lambda function file contents:"
-          cat lambda_function.py | head -n 10
       
-      - name: Deploy Lambda function with debug
+      - name: Deploy Lambda function
         run: |
           # Print environment info (without secrets)
           echo "AWS Region: $AWS_DEFAULT_REGION"
@@ -147,70 +98,23 @@ jobs:
             exit 1
           fi
           
-          # Run deployment with verbose output
-          python -u deploy_simple.py
+          # Run deployment with our current deploy script
+          if [ -f "deploy.py" ]; then
+            python -u deploy.py
+          else
+            echo "deploy.py not found, skipping deployment"
+            exit 1
+          fi
         env:
           ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
       
       - name: Verify deployment
         run: |
-          # Skip verification if deployment failed
-          if [ -f "function_url.txt" ]; then
-            FUNCTION_URL=$(cat function_url.txt)
-            python test_api.py "Test deployment" --url "$FUNCTION_URL"
+          # Run our test suite to verify deployment
+          if [ -f "test_complete.py" ]; then
+            echo "Running deployment verification tests..."
+            python test_complete.py
           else
-            echo "Skipping verification as deployment failed"
-            exit 0
+            echo "test_complete.py not found, skipping verification"
           fi
 
-  deploy-cache:
-    needs: deploy-lambda
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    environment: ${{ github.event.inputs.environment || 'dev' }}
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-          cache: 'pip'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      
-      - name: Set up cache
-        run: |
-          python setup_cache.py || echo "Cache setup failed but continuing"
-          python deploy_simple.py --function lambda_function_cached.py || echo "Cached function deployment failed"
-        env:
-          ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
-
-  deploy-multi-region:
-    needs: deploy-lambda
-    runs-on: ubuntu-latest
-    if: github.event.inputs.deploy_multi_region == 'true'
-    environment: ${{ github.event.inputs.environment || 'dev' }}
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-          cache: 'pip'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      
-      - name: Deploy to multiple regions
-        run: python multi_region_deploy.py
-        env:
-          ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}

@@ -30,11 +30,18 @@ jobs:
           pip install -r requirements.txt
       
       - name: Run tests
-        run: pytest tests/
+        run: |
+          python -m pytest tests/ -v
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
+      
+      - name: Test CLI functionality
+        run: |
+          python -c "import lambda_function; print('Lambda function imports successfully')"
+          python -c "import test_complete; print('Test complete module imports successfully')"
+        continue-on-error: true
       
       - name: Check code quality
         run: |
