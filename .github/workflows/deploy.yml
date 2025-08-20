@@ -55,10 +55,36 @@ jobs:
             echo "No tests directory found, skipping tests."
           fi
 
-  deploy-lambda:
-    needs: test
+  check-credentials:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    outputs:
+      has-credentials: ${{ steps.check.outputs.has-credentials }}
+    steps:
+      - name: Check if AWS credentials are available
+        id: check
+        run: |
+          if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ] && [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+            echo "has-credentials=true" >> $GITHUB_OUTPUT
+            echo "✅ AWS credentials are available"
+          else
+            echo "has-credentials=false" >> $GITHUB_OUTPUT
+            echo "⚠️ AWS credentials not found in GitHub Secrets"
+            echo ""
+            echo "To enable deployment, add these secrets to your repository:"
+            echo "1. Go to Settings > Secrets and variables > Actions"
+            echo "2. Add the following secrets:"
+            echo "   - AWS_ACCESS_KEY_ID"
+            echo "   - AWS_SECRET_ACCESS_KEY"
+            echo "   - LAMBDA_ROLE_ARN"
+            echo "   - AWS_DEFAULT_REGION (optional, defaults to us-east-1)"
+            echo ""
+            echo "For now, deployment will be skipped."
+          fi
+
+  deploy-lambda:
+    needs: [test, check-credentials]
+    runs-on: ubuntu-latest
+    if: needs.check-credentials.outputs.has-credentials == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment: ${{ github.event.inputs.environment || 'dev' }}
     
     steps:
@@ -78,31 +104,27 @@ jobs:
       - name: Verify lambda_function.py exists
         run: |
           if [ -f "lambda_function.py" ]; then
-            echo "lambda_function.py found"
+            echo "✅ lambda_function.py found"
             echo "Lambda function file contents (first 10 lines):"
             head -n 10 lambda_function.py
           else
-            echo "Error: lambda_function.py not found"
+            echo "❌ Error: lambda_function.py not found"
             exit 1
           fi
       
       - name: Deploy Lambda function
         run: |
           # Print environment info (without secrets)
+          echo "🚀 Starting deployment..."
           echo "AWS Region: $AWS_DEFAULT_REGION"
           echo "Lambda Role ARN is set: $([[ -n $LAMBDA_ROLE_ARN ]] && echo 'Yes' || echo 'No')"
           
-          # Check AWS credentials
-          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-            echo "Error: AWS credentials not set in environment variables"
-            exit 1
-          fi
-          
           # Run deployment with our current deploy script
           if [ -f "deploy.py" ]; then
+            echo "Running deploy.py..."
             python -u deploy.py
           else
-            echo "deploy.py not found, skipping deployment"
+            echo "❌ deploy.py not found, skipping deployment"
             exit 1
           fi
         env:
@@ -112,9 +134,32 @@ jobs:
         run: |
           # Run our test suite to verify deployment
           if [ -f "test_complete.py" ]; then
-            echo "Running deployment verification tests..."
+            echo "🧪 Running deployment verification tests..."
             python test_complete.py
           else
-            echo "test_complete.py not found, skipping verification"
+            echo "⚠️ test_complete.py not found, skipping verification"
           fi
+
+  skip-deployment:
+    needs: [test, check-credentials]
+    runs-on: ubuntu-latest
+    if: needs.check-credentials.outputs.has-credentials == 'false'
+    
+    steps:
+      - name: Deployment skipped
+        run: |
+          echo "🔒 Deployment skipped - AWS credentials not configured"
+          echo ""
+          echo "📋 To enable automatic deployment:"
+          echo "1. Go to your repository Settings"
+          echo "2. Navigate to Secrets and variables > Actions"
+          echo "3. Add these repository secrets:"
+          echo "   • AWS_ACCESS_KEY_ID (your AWS access key)"
+          echo "   • AWS_SECRET_ACCESS_KEY (your AWS secret key)"
+          echo "   • LAMBDA_ROLE_ARN (your Lambda execution role ARN)"
+          echo "   • AWS_DEFAULT_REGION (optional, defaults to us-east-1)"
+          echo ""
+          echo "🚀 Once configured, future pushes will automatically deploy!"
+          echo ""
+          echo "💡 For manual deployment, run: python deploy.py"
 

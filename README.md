@@ -250,12 +250,24 @@ genai-pipeline/
 
 ### **Environment Variables**
 ```bash
-# Required in .env
+# Required in .env for local development
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_DEFAULT_REGION=us-east-1
 LAMBDA_ROLE_ARN=arn:aws:iam::YOUR_ACCOUNT_ID:role/lambda-bedrock-role
 ```
+
+### **GitHub Actions Setup (Optional)**
+For automatic deployment on push to main:
+
+1. Go to your repository **Settings** → **Secrets and variables** → **Actions**
+2. Add these repository secrets:
+   - `AWS_ACCESS_KEY_ID` - Your AWS access key
+   - `AWS_SECRET_ACCESS_KEY` - Your AWS secret key  
+   - `LAMBDA_ROLE_ARN` - Your Lambda execution role ARN
+   - `AWS_DEFAULT_REGION` - AWS region (optional, defaults to us-east-1)
+
+Once configured, every push to main will automatically deploy your changes! 🚀
 
 ### **Dependencies**
 ```bash
@@ -278,6 +290,19 @@ pip install -r requirements.txt
 - ✅ ARM64 Knowledge: 6.02s
 
 **Average Response Time**: 4.01s
+
+## 🔄 CI/CD Pipeline
+
+### **Automated Workflows**
+- ✅ **Continuous Integration**: Runs tests on every push
+- ✅ **Automatic Deployment**: Deploys to AWS when credentials are configured
+- ✅ **Documentation**: Auto-generates docs from README and SECURITY.md
+- ✅ **Maintenance**: Weekly dependency updates and security scans
+
+### **Workflow Status**
+- **Tests**: Always run (no AWS credentials needed)
+- **Deployment**: Conditional (requires GitHub Secrets setup)
+- **Documentation**: Auto-builds on markdown changes
 
 ## 📄 License
 
