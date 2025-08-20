@@ -5,11 +5,40 @@ import boto3
 def lambda_handler(event, context):
     """AWS Lambda handler for model inference."""
     try:
+        # Handle CORS preflight requests
+        http_method = event.get('httpMethod') or event.get('requestContext', {}).get('http', {}).get('method', 'POST')
+        
+        if http_method == 'OPTIONS':
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization',
+                    'Access-Control-Max-Age': '86400'
+                }
+            }
+        
         # Handle both API Gateway and Function URL formats
         if 'body' in event:
-            data = json.loads(event['body']) if isinstance(event['body'], str) else event['body']
+            body = event['body']
+            if isinstance(body, str):
+                data = json.loads(body) if body else {}
+            else:
+                data = body or {}
         else:
             data = event
+        
+        # Validate request
+        if not data.get('prompt'):
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'error': 'Missing prompt in request'}),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                }
+            }
         
         # Run inference
         result = run_inference(data)
@@ -20,14 +49,17 @@ def lambda_handler(event, context):
             'headers': {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type'
+                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization'
             }
         }
     except Exception as e:
         return {
             'statusCode': 500,
-            'body': json.dumps({'error': str(e)}),
+            'body': json.dumps({
+                'inference_complete': False,
+                'error': str(e)
+            }),
             'headers': {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'

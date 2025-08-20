@@ -1,5 +1,7 @@
 # Environment variables
 .env
+.env.local
+.env.production
 
 # Python
 __pycache__/
@@ -8,6 +10,10 @@ __pycache__/
 *.so
 .Python
 env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 build/
 develop-eggs/
 dist/
@@ -22,20 +28,67 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # AWS
 *.zip
+lambda_deployment.zip
 access_keys.json
+.aws/
+
+# Streamlit
+.streamlit/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
 
 # Logs
 logs/
 *.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
 
 # Local development
 .DS_Store
+Thumbs.db
+*.tmp
+*.temp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# Security
+*.pem
+*.key
+*.crt
+credentials.json
