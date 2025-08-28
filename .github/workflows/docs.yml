@@ -8,6 +8,12 @@ on:
       - 'docs/**'
   workflow_dispatch:
 
+# Grant write permissions for GitHub Pages deployment
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
   update-docs:
     runs-on: ubuntu-latest
@@ -22,26 +28,61 @@ jobs:
       - name: Create basic mkdocs config if missing
         run: |
           if [ ! -f "mkdocs.yml" ]; then
-            echo "Creating basic mkdocs.yml"
+            echo "Creating enhanced mkdocs.yml"
             cat > mkdocs.yml << EOF
-          site_name: GenAI Pipeline Documentation
-          site_description: ARM64 Optimized GenAI Pipeline on AWS
+          site_name: GenAI Pipeline - AWS Graviton (Arm Neoverse)
+          site_description: Production-ready GenAI pipeline on AWS Graviton processors powered by Arm Neoverse
+          site_url: https://hrudu-dev.github.io/genai-pipeline-arm-aws/
           
           nav:
             - Home: README.md
+            - Architecture: docs/architecture.md
+            - AWS Setup: docs/aws-setup-guide.md
             - Security: SECURITY.md
+            - IAM Setup: iam/SETUP-IAM.md
           
           theme:
             name: material
             palette:
-              primary: blue
-              accent: orange
+              - scheme: default
+                primary: green
+                accent: orange
+                toggle:
+                  icon: material/brightness-7
+                  name: Switch to dark mode
+              - scheme: slate
+                primary: green
+                accent: orange
+                toggle:
+                  icon: material/brightness-4
+                  name: Switch to light mode
+            features:
+              - navigation.tabs
+              - navigation.sections
+              - navigation.expand
+              - navigation.top
+              - search.highlight
+              - content.code.copy
           
           markdown_extensions:
             - admonition
-            - codehilite
+            - pymdownx.details
+            - pymdownx.superfences
+            - pymdownx.highlight:
+                anchor_linenums: true
+            - pymdownx.inlinehilite
+            - pymdownx.snippets
             - toc:
                 permalink: true
+            - attr_list
+            - md_in_html
+          
+          extra:
+            social:
+              - icon: fontawesome/brands/github
+                link: https://github.com/hrudu-dev/genai-pipeline-arm-aws
+              - icon: fontawesome/brands/aws
+                link: https://aws.amazon.com/ec2/graviton/
           EOF
           fi
       
@@ -54,9 +95,12 @@ jobs:
         run: mkdocs build
       
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
           publish_branch: gh-pages
           force_orphan: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Deploy documentation updates'
